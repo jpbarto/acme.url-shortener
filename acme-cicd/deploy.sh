@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# Exit immediately if any command fails
+set -e
+
 # Change to parent directory
 cd "$(dirname "$0")/.."
 
@@ -20,7 +23,7 @@ if ! command -v sam >/dev/null 2>&1; then
     wget https://github.com/aws/aws-sam-cli/releases/latest/download/aws-sam-cli-linux-x86_64.zip
 
     # Unzip the installer
-    unzip aws-sam-cli-linux-x86_64.zip -d sam-installation
+    unzip -q aws-sam-cli-linux-x86_64.zip -d sam-installation
 
     # Install AWS SAM CLI
     ./sam-installation/install
@@ -38,7 +41,7 @@ sam --version
 if ! command -v aws >/dev/null 2>&1; then
     echo "Installing AWS CLI v2..."
     curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-    unzip awscliv2.zip
+    unzip -q awscliv2.zip
     ./aws/install
     rm -rf awscliv2.zip aws
 else

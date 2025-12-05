@@ -20,4 +20,4 @@ sam --version
 sam validate --lint
 
 # Build the application
-sam build
+sam build --build-dir build_output --config-file samconfig.toml

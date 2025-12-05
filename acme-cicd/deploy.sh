@@ -62,4 +62,4 @@ API_ENDPOINT=$(aws cloudformation describe-stacks \
     --query "Stacks[0].Outputs[?OutputKey=='VueAppAPIRoot'].OutputValue" \
     --output text)
 
-echo "{\"url-shortener.api.endpoint\": \"$API_ENDPOINT\"}" | tee deployment_output.json
+echo "{\"url-shortener\": {\"api\": {\"endpoint\": \"$API_ENDPOINT\"}}}" | tee deployment_output.json

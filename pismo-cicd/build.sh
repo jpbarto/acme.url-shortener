@@ -2,8 +2,8 @@
 
 # Assumes a recent version of Ubuntu
 # Update package lists and update dependencies
-sudo apt-get update
-sudo apt-get install -y \
+apt-get update
+apt-get install -y \
     build-essential \
     python3-pip \
     python3-venv \
@@ -11,7 +11,7 @@ sudo apt-get install -y \
     wget
 
 # Install the AWS SAM CLI v2
-pip install aws-sam-cli
+python3 -m pip install aws-sam-cli
 
 # Verify the installation
 sam --version

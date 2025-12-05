@@ -52,9 +52,11 @@ sam deploy \
     --no-confirm-changeset --capabilities CAPABILITY_IAM \
     --stack-name url-shortener-stack \
     --parameter-overrides "$(cat sam-parameters.txt) ParameterKey=PersonalAcessToken,ParameterValue=${GITHUB_PAT}" \
+    --region us-east-1 \
     --resolve-s3
 
 # Retrieve the API Gateway endpoint URL and output as JSON
+export AWS_REGION=us-east-1
 API_ENDPOINT=$(aws cloudformation describe-stacks \
     --stack-name url-shortener-stack \
     --query "Stacks[0].Outputs[?OutputKey=='VueAppAPIRoot'].OutputValue" \

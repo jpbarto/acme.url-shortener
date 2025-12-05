@@ -1,0 +1,1 @@
+ParameterKey=AppName,ParameterValue=shortener ParameterKey=UseLocalClient,ParameterValue=false ParameterKey=GithubRepository,ParameterValue=https://github.com/jpbarto/acme.url-shortener.git ParameterKey=CustomDomain,ParameterValue=none

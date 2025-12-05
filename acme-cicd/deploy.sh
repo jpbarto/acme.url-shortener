@@ -48,7 +48,16 @@ fi
 aws --version
 
 # Deploy the code using AWS SAM
-sam deploy --config-file samconfig.toml \
+sam deploy \
     --no-confirm-changeset --capabilities CAPABILITY_IAM \
     --stack-name url-shortener-stack \
+    --parameter-overrides "$(cat sam-parameters.txt) ParameterKey=PersonalAcessToken,ParameterValue=${GITHUB_PAT}" \
     --resolve-s3
+
+# Retrieve the API Gateway endpoint URL and output as JSON
+API_ENDPOINT=$(aws cloudformation describe-stacks \
+    --stack-name url-shortener-stack \
+    --query "Stacks[0].Outputs[?OutputKey=='VueAppAPIRoot'].OutputValue" \
+    --output text)
+
+echo "{\"url-shortener.api.endpoint\": \"$API_ENDPOINT\"}" | tee deployment_output.json

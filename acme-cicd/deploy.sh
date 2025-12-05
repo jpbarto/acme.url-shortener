@@ -3,31 +3,47 @@
 # Change to parent directory
 cd "$(dirname "$0")/.."
 
-# Install wget and unzip non-interactively
-export DEBIAN_FRONTEND=noninteractive
-apt-get update -y
-apt-get install -y wget unzip
+# Check if wget and unzip are installed, install if missing
+if ! command -v wget >/dev/null 2>&1 || ! command -v unzip >/dev/null 2>&1; then
+    echo "Installing wget and unzip..."
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -y
+    apt-get install -y wget unzip
+else
+    echo "wget and unzip already installed"
+fi
 
-# Download the AWS SAM CLI installer for Linux x86_64
-wget https://github.com/aws/aws-sam-cli/releases/latest/download/aws-sam-cli-linux-x86_64.zip
+# Check if AWS SAM CLI is installed
+if ! command -v sam >/dev/null 2>&1; then
+    echo "Installing AWS SAM CLI..."
+    # Download the AWS SAM CLI installer for Linux x86_64
+    wget https://github.com/aws/aws-sam-cli/releases/latest/download/aws-sam-cli-linux-x86_64.zip
 
-# Unzip the installer
-unzip aws-sam-cli-linux-x86_64.zip -d sam-installation
+    # Unzip the installer
+    unzip aws-sam-cli-linux-x86_64.zip -d sam-installation
 
-# Install AWS SAM CLI
-./sam-installation/install
+    # Install AWS SAM CLI
+    ./sam-installation/install
 
-# Clean up installation files
-rm -rf aws-sam-cli-linux-x86_64.zip aws-sam-cli-linux-x86_64.zip.sha256 sam-installation
+    # Clean up installation files
+    rm -rf aws-sam-cli-linux-x86_64.zip aws-sam-cli-linux-x86_64.zip.sha256 sam-installation
+else
+    echo "AWS SAM CLI already installed"
+fi
 
 # Verify the installation
 sam --version
 
-# Install AWS CLI v2
-curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-unzip awscliv2.zip
-./aws/install
-rm -rf awscliv2.zip aws
+# Check if AWS CLI is installed
+if ! command -v aws >/dev/null 2>&1; then
+    echo "Installing AWS CLI v2..."
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    unzip awscliv2.zip
+    ./aws/install
+    rm -rf awscliv2.zip aws
+else
+    echo "AWS CLI already installed"
+fi
 # Verify AWS CLI installation
 aws --version
 

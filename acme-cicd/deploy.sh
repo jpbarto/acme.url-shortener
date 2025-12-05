@@ -40,7 +40,7 @@ sam --version
 # Check if AWS CLI is installed
 if ! command -v aws >/dev/null 2>&1; then
     echo "Installing AWS CLI v2..."
-    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    wget "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -O "awscliv2.zip"
     unzip -q awscliv2.zip
     ./aws/install
     rm -rf awscliv2.zip aws

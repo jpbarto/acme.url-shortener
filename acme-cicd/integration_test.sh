@@ -7,6 +7,16 @@ set -e
 # Change to parent directory
 cd "$(dirname "$0")/.."
 
+# Check if curl is installed, install if missing
+if ! command -v curl >/dev/null 2>&1; then
+    echo "Installing curl..."
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -y
+    apt-get install -y curl
+else
+    echo "curl already installed"
+fi
+
 # Read API endpoint from deployment output
 if [ ! -f "deployment_output.json" ]; then
     echo "ERROR: deployment_output.json not found. Run deploy.sh first."

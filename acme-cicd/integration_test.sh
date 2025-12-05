@@ -38,7 +38,7 @@ USER_ID="test-user@example.com"
 
 # Generate a unique link ID for testing
 LINK_ID="test-$(date +%s)"
-TEST_URL="https://www.example.com/test/page"
+TEST_URL="https://api.restful-api.dev/objects"
 
 echo ""
 echo "Test 1: Create a new short URL"
@@ -50,7 +50,7 @@ CREATE_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
   "$API_ENDPOINT/app")
 
 HTTP_CODE=$(echo "$CREATE_RESPONSE" | tail -n1)
-RESPONSE_BODY=$(echo "$CREATE_RESPONSE" | head -n-1)
+RESPONSE_BODY=$(echo "$CREATE_RESPONSE" | sed '$d')
 
 if [ "$HTTP_CODE" = "200" ]; then
     echo "✓ CREATE passed (HTTP $HTTP_CODE)"
@@ -69,7 +69,7 @@ GET_ALL_RESPONSE=$(curl -s -w "\n%{http_code}" \
   "$API_ENDPOINT/app")
 
 HTTP_CODE=$(echo "$GET_ALL_RESPONSE" | tail -n1)
-RESPONSE_BODY=$(echo "$GET_ALL_RESPONSE" | head -n-1)
+RESPONSE_BODY=$(echo "$GET_ALL_RESPONSE" | sed '$d')
 
 if [ "$HTTP_CODE" = "200" ]; then
     echo "✓ GET ALL passed (HTTP $HTTP_CODE)"
@@ -83,13 +83,13 @@ fi
 echo ""
 echo "Test 3: Redirect to full URL"
 echo "-----------------------------"
-REDIRECT_RESPONSE=$(curl -s -w "\n%{http_code}" -I -L "$API_ENDPOINT/$LINK_ID")
+REDIRECT_RESPONSE=$(curl -s -w "\n%{http_code}" -L "$API_ENDPOINT/$LINK_ID")
 
 HTTP_CODE=$(echo "$REDIRECT_RESPONSE" | tail -n1)
 
-if [ "$HTTP_CODE" = "200" ] || echo "$REDIRECT_RESPONSE" | grep -q "301"; then
-    echo "✓ REDIRECT passed"
-    echo "$REDIRECT_RESPONSE" | head -n-1 | grep -E "^(HTTP|Location):"
+if [ "$HTTP_CODE" = "200" ]; then
+    echo "✓ REDIRECT passed (HTTP $HTTP_CODE)"
+    echo "  Successfully redirected to target URL"
 else
     echo "✗ REDIRECT failed (HTTP $HTTP_CODE)"
     echo "$REDIRECT_RESPONSE"
@@ -107,7 +107,7 @@ UPDATE_RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT \
   "$API_ENDPOINT/app/$LINK_ID")
 
 HTTP_CODE=$(echo "$UPDATE_RESPONSE" | tail -n1)
-RESPONSE_BODY=$(echo "$UPDATE_RESPONSE" | head -n-1)
+RESPONSE_BODY=$(echo "$UPDATE_RESPONSE" | sed '$d')
 
 if [ "$HTTP_CODE" = "200" ]; then
     echo "✓ UPDATE passed (HTTP $HTTP_CODE)"
@@ -126,7 +126,7 @@ DELETE_RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE \
   "$API_ENDPOINT/app/$LINK_ID")
 
 HTTP_CODE=$(echo "$DELETE_RESPONSE" | tail -n1)
-RESPONSE_BODY=$(echo "$DELETE_RESPONSE" | head -n-1)
+RESPONSE_BODY=$(echo "$DELETE_RESPONSE" | sed '$d')
 
 if [ "$HTTP_CODE" = "200" ]; then
     echo "✓ DELETE passed (HTTP $HTTP_CODE)"

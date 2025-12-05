@@ -2,7 +2,8 @@
 
 # Assumes a recent version of Ubuntu
 # Update package lists and update dependencies
-apt-get update
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y
 apt-get install -y \
     build-essential \
     python3-pip \

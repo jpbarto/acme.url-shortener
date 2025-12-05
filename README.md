@@ -15,7 +15,7 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. -->
 
 # Functionless URL Shortener
-This app creates a URL shortener without using any compute. All business logic is handled at the Amazon API Gateway level. The basic app will create an API Gateway instance utilizing Cognito for authentication and authorization. It will also create an Amazon DynamoDB table for data storage. It will also create a simple Vuejs application as a demo client.
+This app creates a URL shortener without using any compute. All business logic is handled at the Amazon API Gateway level. The basic app will create an API Gateway instance with a simple header-based user identification system. It will also create an Amazon DynamoDB table for data storage. It will also create a simple Vuejs application as a demo client.
 
 Read the blog series about this application:
 1. [Building a serverless URL shortener app without AWS Lambda – part 1](https://aws.amazon.com/blogs/compute/building-a-serverless-url-shortener-app-without-lambda-part-1)
@@ -26,10 +26,8 @@ Read the blog series about this application:
 
 ### Services Used
 * <a href="https://aws.amazon.com/api-gateway/" target="_blank">Amazon API Gateway</a>
-* <a href="https://aws.amazon.com/cognito/" target="_blank">Amazon Cognito</a>
 * <a href="https://aws.amazon.com/dynamodb/" target="_bank">Amazon DynamoDB</a>
 * <a href="https://aws.amazon.com/amplify/console/" target="_blank">AWS Amplify Console</a>
-* <a href="https://aws.amazon.com/cloudfront/" target="_blank">Amazon CloudFront</a> *Will cause a lengthy deployment time. See note under **Deploying**
 * <a href="https://aws.amazon.com/s3/" target="_blank">Amazon S3</a>
 
 
@@ -45,7 +43,6 @@ Read the blog series about this application:
 
 ### Deploying
 
-***Note: This stack includes an Amazon CloudFront distribution which can take around 30 minutes to create. Don't be alarmed if the deploy seems to hang for a long time.***
 In the terminal, use the SAM CLI guided deployment the first time you deploy
 ```bash
 sam deploy -g
@@ -143,6 +140,207 @@ aws amplify get-job --app-id <MyAmplifyAppId> --branch-name master --job-id <Job
 1. Click *Run build*
 
 *Note: this is only required for the first build subsequent client builds will be triggered when updates are committed to your forked repository.
+
+## REST API Documentation
+
+The application exposes a REST API through Amazon API Gateway that can be accessed directly. The API endpoint URL is available in the stack outputs as `VueAppAPIRoot`.
+
+### API Endpoint
+
+After deployment, your API will be accessible at:
+```
+https://{ApiId}.execute-api.{Region}.amazonaws.com/Prod
+```
+
+You can find your specific endpoint URL by running:
+```bash
+aws cloudformation describe-stacks --stack-name URLShortener --query "Stacks[0].Outputs[?OutputKey=='VueAppAPIRoot'].OutputValue" --output text
+```
+
+### Authentication
+
+Most API endpoints require user identification using a custom header. Include the user identifier in the `shortener-user-id` header:
+```
+shortener-user-id: <your-user-identifier>
+```
+
+**Note:** This header-based authentication is simple but not secure for production use. The user ID is not validated, so any client can impersonate any user. Consider implementing proper authentication (API keys, OAuth, etc.) for production deployments.
+
+### API Endpoints
+
+#### 1. Redirect to Full URL (Public)
+Redirects to the full URL associated with a short link ID.
+
+**Endpoint:** `GET /{linkId}`
+
+**Parameters:**
+- `linkId` (path) - The short link identifier
+
+**Response:**
+- `301 Redirect` - Redirects to the full URL
+- Headers:
+  - `Location` - The full URL to redirect to
+  - `Cache-Control` - Cache settings
+
+**Example:**
+```bash
+curl -L https://{ApiId}.execute-api.{Region}.amazonaws.com/Prod/abc123
+```
+
+#### 2. Get All Links for User (Authenticated)
+Retrieves all URL links created by the authenticated user.
+
+**Endpoint:** `GET /app`
+
+**Headers:**
+- `shortener-user-id: <user-identifier>` (required)
+
+**Response:**
+- `200 OK` - Returns array of link objects
+- Headers:
+  - `Access-Control-Allow-Origin`
+  - `Cache-Control: no-cache, no-store`
+
+**Response Body:**
+```json
+[
+  {
+    "id": "abc123",
+    "url": "https://example.com/very/long/url",
+    "timestamp": "Wed, 05 Dec 2025 12:00:00 GMT",
+    "owner": "user@example.com"
+  }
+]
+```
+
+**Example:**
+```bash
+curl -H "shortener-user-id: user@example.com" \
+  https://{ApiId}.execute-api.{Region}.amazonaws.com/Prod/app
+```
+
+#### 3. Create New Link (Authenticated)
+Creates a new short URL link.
+
+**Endpoint:** `POST /app`
+
+**Headers:**
+- `shortener-user-id: <user-identifier>` (required)
+- `Content-Type: application/json`
+
+**Request Body:**
+```json
+{
+  "id": "abc123",
+  "url": "https://example.com/very/long/url"
+}
+```
+
+**Response:**
+- `200 OK` - Link created successfully
+- `400 Bad Request` - Link ID already exists or validation error
+
+**Success Response Body:**
+```json
+{
+  "id": "abc123",
+  "url": "https://example.com/very/long/url",
+  "timestamp": "Wed, 05 Dec 2025 12:00:00 GMT",
+  "owner": "user@example.com"
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": true,
+  "message": "URL link already exists"
+}
+```
+
+**Example:**
+```bash
+curl -X POST \
+  -H "shortener-user-id: user@example.com" \
+  -H "Content-Type: application/json" \
+  -d '{"id":"abc123","url":"https://example.com/long/url"}' \
+  https://{ApiId}.execute-api.{Region}.amazonaws.com/Prod/app
+```
+
+#### 4. Update Link (Authenticated)
+Updates an existing short URL link. Only the owner can update their links.
+
+**Endpoint:** `PUT /app/{linkId}`
+
+**Parameters:**
+- `linkId` (path) - The short link identifier to update
+
+**Headers:**
+- `shortener-user-id: <user-identifier>` (required)
+- `Content-Type: application/json`
+
+**Request Body:**
+```json
+{
+  "id": "abc123",
+  "url": "https://example.com/updated/url"
+}
+```
+
+**Response:**
+- `200 OK` - Link updated successfully
+- `400 Bad Request` - Permission denied or validation error
+
+**Success Response Body:**
+```json
+{
+  "id": "abc123",
+  "url": "https://example.com/updated/url",
+  "timestamp": "Wed, 05 Dec 2025 12:00:00 GMT",
+  "owner": "user@example.com"
+}
+```
+
+**Example:**
+```bash
+curl -X PUT \
+  -H "shortener-user-id: user@example.com" \
+  -H "Content-Type: application/json" \
+  -d '{"id":"abc123","url":"https://example.com/new/url"}' \
+  https://{ApiId}.execute-api.{Region}.amazonaws.com/Prod/app/abc123
+```
+
+#### 5. Delete Link (Authenticated)
+Deletes a short URL link. Only the owner can delete their links.
+
+**Endpoint:** `DELETE /app/{linkId}`
+
+**Parameters:**
+- `linkId` (path) - The short link identifier to delete
+
+**Headers:**
+- `shortener-user-id: <user-identifier>` (required)
+
+**Response:**
+- `200 OK` - Link deleted successfully
+- `400 Bad Request` - Permission denied or link not found
+
+**Example:**
+```bash
+curl -X DELETE \
+  -H "shortener-user-id: user@example.com" \
+  https://{ApiId}.execute-api.{Region}.amazonaws.com/Prod/app/abc123
+```
+
+### CORS Support
+
+The API includes CORS support with preflight handling via `OPTIONS` method on `/app` and `/app/{linkId}` endpoints.
+
+### Rate Limiting
+
+The API Gateway has the following throttling settings configured:
+- Default: 2000 requests/second with burst of 1000
+- GET `/{linkId}`: 10000 requests/second with burst of 4000
 
 ## Cleanup
 1. Open the <a href="https://us-west-2.console.aws.amazon.com/cloudformation/home" target="_blank">CloudFormation console</a>

@@ -39,7 +39,7 @@ Parameters:
     NoEcho: true
   CustomDomain:
     Type: String
-    Description: Cstom domain added to client # only configures cognito for now. Manually handle domain on amplify console for client
+    Description: Custom domain added to client
     Default: none
 
 ###################################################################################################
@@ -99,54 +99,6 @@ Resources:
           Projection:
             ProjectionType: ALL
   
-  ##   Cognito user pool
-  UserPool:
-    Type: AWS::Cognito::UserPool 
-    Properties: 
-      UserPoolName: !Sub ${AppName}-UserPool 
-      Policies: 
-        PasswordPolicy: 
-          MinimumLength: 8
-      AutoVerifiedAttributes:
-        - email
-      UsernameAttributes: 
-        - email 
-      Schema: 
-        - AttributeDataType: String 
-          Name: email 
-          Required: false
-
-  ##   Cognito user pool domain
-  UserPoolDomain:
-    Type: AWS::Cognito::UserPoolDomain
-    Properties: 
-      Domain: !Sub ${AppName}-${AWS::AccountId}
-      UserPoolId: !Ref UserPool
-
-  ##   Cognito user pool client
-  UserPoolClient:
-    Type: AWS::Cognito::UserPoolClient 
-    Properties: 
-      UserPoolId: !Ref UserPool 
-      ClientName: !Sub ${AppName}-UserPoolClient 
-      GenerateSecret: false
-      SupportedIdentityProviders:
-        - COGNITO
-      CallbackURLs:
-        - !Join [ ".", [ https://master, !GetAtt AmplifyApp.DefaultDomain ]]
-        - !If [IsLocal, http://localhost:8080, !Ref "AWS::NoValue"]
-        - !If [HasCustomDomain, !Ref CustomDomain, !Ref "AWS::NoValue"]
-      LogoutURLs:
-        - !Join [ ".", [ https://master, !GetAtt AmplifyApp.DefaultDomain ]]
-        - !If [IsLocal, http://localhost:8080, !Ref "AWS::NoValue"]
-        - !If [HasCustomDomain, !Ref CustomDomain, !Ref "AWS::NoValue"]
-      AllowedOAuthFlowsUserPoolClient: true
-      AllowedOAuthFlows:
-        - code
-      AllowedOAuthScopes:
-        - email
-        - openid
-
   ##   Amplify Application for hosting
   AmplifyApp:
     Type: AWS::Amplify::App
@@ -394,14 +346,6 @@ Outputs:
     Description: API Gateway endpoint URL for linker
     Value: !Sub "https://${SiteAPI}.execute-api.${AWS::Region}.amazonaws.com/Prod"
  
-  VueAppAuthDomain: 
-    Description: Domain used for authentication
-    Value: !Sub https://${AppName}-${AWS::AccountId}.auth.${AWS::Region}.amazoncognito.com
-
-  VueAppClientId: 
-    Description: Cognito User Pool Client Id
-    Value: !Ref UserPoolClient
-
   ClientDomainAddress:
     Description: Domain for client
     Value: !Join [ ".", [ https://master, !GetAtt AmplifyApp.DefaultDomain ]]
@@ -413,10 +357,9 @@ Outputs:
   AmplifyEnvironmentUpdateCommand:
     Description: Command to add environment variables to the Amplify application
     Value: !Sub
-      - aws amplify update-app --app-id ${AmplifyID} --environment-variables VUE_APP_NAME=${AppName},VUE_APP_CLIENT_ID=${UserPoolClient},VUE_APP_API_ROOT=${APIRoot},VUE_APP_AUTH_DOMAIN=${APIAuthDomain}
+      - aws amplify update-app --app-id ${AmplifyID} --environment-variables VUE_APP_NAME=${AppName},VUE_APP_API_ROOT=${APIRoot}
       - AmplifyID: !GetAtt AmplifyApp.AppId
         APIRoot: !Sub "https://${SiteAPI}.execute-api.${AWS::Region}.amazonaws.com/Prod"
-        APIAuthDomain: !Sub https://${AppName}-${AWS::AccountId}.auth.${AWS::Region}.amazoncognito.com
 
   AmplifyDeployCommand:
     Description: Command to deploy the Amplify application

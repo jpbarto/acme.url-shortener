@@ -78,10 +78,8 @@ paths:
     ## Get all links for user
     get:
       summary: Fetch all links for authenticated user
-      security:
-      - UserAuthorizer: []
       parameters:
-        - $ref: '#/components/parameters/authHeader'
+        - $ref: '#/components/parameters/userIdHeader'
       responses:
         "200":
           description: "200 response"
@@ -102,7 +100,7 @@ paths:
           application/json: { "Fn::Sub": "{\"TableName\": \"${LinkTable}\", \
             \"IndexName\":\"OwnerIndex\",\"KeyConditionExpression\": \"#n_owner = :v_owner\", \
             \"ExpressionAttributeValues\": \
-            {\":v_owner\": {\"S\": \"$context.authorizer.claims.email\"}},\"ExpressionAttributeNames\": {\"#n_owner\": \"owner\"}}"}
+            {\":v_owner\": {\"S\": \"$input.params('shortener-user-id')\"}},\"ExpressionAttributeNames\": {\"#n_owner\": \"owner\"}}"}
         passthroughBehavior: "when_no_templates"
         responses:
           "200":
@@ -124,11 +122,9 @@ paths:
     ## Create a new link
     post:
       summary: Create new url
-      security:
-      - UserAuthorizer: []
       x-amazon-apigateway-request-validator: body
       parameters:
-        - $ref: '#/components/parameters/authHeader'
+        - $ref: '#/components/parameters/userIdHeader'
       requestBody:
         description: Optional description in *Markdown*
         required: true
@@ -159,7 +155,7 @@ paths:
             \"ConditionExpression\":\"attribute_not_exists(id)\", \
             \"Key\": {\"id\": {\"S\": $input.json('$.id')}}, \
             \"ExpressionAttributeNames\": {\"#u\": \"url\",\"#o\": \"owner\",\"#ts\": \"timestamp\"}, \
-            \"ExpressionAttributeValues\":{\":u\": {\"S\": $input.json('$.url')},\":o\": {\"S\": \"$context.authorizer.claims.email\"},\":ts\": {\"S\": \"$context.requestTime\"}}, \
+            \"ExpressionAttributeValues\":{\":u\": {\"S\": $input.json('$.url')},\":o\": {\"S\": \"$input.params('shortener-user-id')\"},\":ts\": {\"S\": \"$context.requestTime\"}}, \
             \"UpdateExpression\": \"SET #u = :u, #o = :o, #ts = :ts\", \
             \"ReturnValues\": \"ALL_NEW\"}" }
         passthroughBehavior: "when_no_templates"
@@ -210,7 +206,7 @@ paths:
             statusCode: "200"
             responseParameters:
               method.response.header.Access-Control-Allow-Methods: "'POST, GET, OPTIONS'"
-              method.response.header.Access-Control-Allow-Headers: "'authorization, content-type'"
+              method.response.header.Access-Control-Allow-Headers: "'shortener-user-id, content-type'"
               method.response.header.Access-Control-Allow-Origin: {"Fn::If": ["IsLocal", "'*'", {"Fn::Sub": ["'https://master.${ampDomain}'", { "ampDomain": {"Fn::GetAtt":["AmplifyApp", "DefaultDomain"]} }]}]}
         type: "mock"
 
@@ -218,11 +214,9 @@ paths:
     ## Delete link
     delete:
       summary: Delete url
-      security:
-      - UserAuthorizer: []
       x-amazon-apigateway-request-validator: params
       parameters:
-        - $ref: '#/components/parameters/authHeader'
+        - $ref: '#/components/parameters/userIdHeader'
         - $ref: '#/components/parameters/linkIdHeader'
       responses:
         "200":
@@ -243,7 +237,7 @@ paths:
           application/json: { "Fn::Sub":  "{\"Key\": {\"id\": {\"S\": \"$input.params().path.linkId\"}}, \
             \"TableName\": \"${LinkTable}\", \
             \"ConditionExpression\": \"#owner = :owner\", \
-            \"ExpressionAttributeValues\":{\":owner\": {\"S\": \"$context.authorizer.claims.email\"}}, \
+            \"ExpressionAttributeValues\":{\":owner\": {\"S\": \"$input.params('shortener-user-id')\"}}, \
             \"ExpressionAttributeNames\": {\"#owner\": \"owner\"}}" }
         passthroughBehavior: "when_no_templates"
         responses:
@@ -259,8 +253,6 @@ paths:
     ## Update links
     put:
       summary: Update specific URL
-      security:
-      - UserAuthorizer: []
       x-amazon-apigateway-request-validator: body
       requestBody:
         description: Optional description in *Markdown*
@@ -270,7 +262,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PutBody'
       parameters:
-        - $ref: '#/components/parameters/authHeader'
+        - $ref: '#/components/parameters/userIdHeader'
         - $ref: '#/components/parameters/linkIdHeader'
       responses:
         "200":
@@ -294,7 +286,7 @@ paths:
           application/json: { "Fn::Sub": "{\"TableName\": \"${LinkTable}\",\
             \"Key\": {\"id\": {\"S\": $input.json('$.id')}}, \
             \"ExpressionAttributeNames\": {\"#u\": \"url\", \"#owner\": \"owner\", \"#id\":\"id\"}, \
-            \"ExpressionAttributeValues\":{\":u\": {\"S\": $input.json('$.url')}, \":owner\": {\"S\": \"$context.authorizer.claims.email\"}, \":linkId\":{\"S\":\"$input.params().path.linkId\"}}, \
+            \"ExpressionAttributeValues\":{\":u\": {\"S\": $input.json('$.url')}, \":owner\": {\"S\": \"$input.params('shortener-user-id')\"}, \":linkId\":{\"S\":\"$input.params().path.linkId\"}}, \
             \"UpdateExpression\": \"SET #u = :u\", \
             \"ReturnValues\": \"ALL_NEW\", \
             \"ConditionExpression\": \"#owner = :owner AND #id = :linkId\"}" }
@@ -339,7 +331,7 @@ paths:
             statusCode: "200"
             responseParameters:
               method.response.header.Access-Control-Allow-Methods: "'PUT, DELETE, OPTIONS'"
-              method.response.header.Access-Control-Allow-Headers: "'authorization, content-type'"
+              method.response.header.Access-Control-Allow-Headers: "'shortener-user-id, content-type'"
               method.response.header.Access-Control-Allow-Origin: {"Fn::If": ["IsLocal", "'*'", {"Fn::Sub": ["'https://master.${ampDomain}'", { "ampDomain": {"Fn::GetAtt":["AmplifyApp", "DefaultDomain"]} }]}]}
         type: "mock"
 
@@ -375,11 +367,11 @@ components:
         - timestamp
         - owner
   parameters:
-    authHeader:
+    userIdHeader:
       in: header
-      name: Authorization
+      name: shortener-user-id
       required: true
-      description: Contains authorization token
+      description: User identifier for link ownership
       schema:
         type: string
     linkIdHeader:
@@ -389,15 +381,3 @@ components:
       description: Short link ID for full URL
       schema:
         type: string
-
-## Authorizer definition
-securityDefinitions:
-  UserAuthorizer:
-    type: "apiKey"
-    name: "Authorization"
-    in: "header"
-    x-amazon-apigateway-authtype: "cognito_user_pools"
-    x-amazon-apigateway-authorizer:
-      providerARNs:
-      - Fn::GetAtt: [ UserPool, Arn ]
-      type: "cognito_user_pools"

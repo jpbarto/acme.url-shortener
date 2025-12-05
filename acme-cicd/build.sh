@@ -1,6 +1,9 @@
 #!/bin/sh
 
-# Assumes a recent version of Ubuntu with python3, unzip, and wget pre-installed
+# Install wget and unzip non-interactively
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y
+apt-get install -y wget unzip
 
 # Download the AWS SAM CLI installer for Linux x86_64
 wget https://github.com/aws/aws-sam-cli/releases/latest/download/aws-sam-cli-linux-x86_64.zip

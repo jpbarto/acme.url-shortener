@@ -147,47 +147,6 @@ Resources:
         - email
         - openid
 
-  ##   CloudFront distribution
-  CloudFrontDistro:
-    Type: AWS::CloudFront::Distribution
-    Properties: 
-      DistributionConfig:
-        Comment: URL Shortener CDN
-        DefaultCacheBehavior:
-          AllowedMethods: ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
-          CachedMethods: ["GET", "HEAD", "OPTIONS"]
-          Compress: true
-          DefaultTTL: 0
-          ForwardedValues:
-            Headers:
-            - Access-Control-Request-Headers
-            - Access-Control-Request-Method
-            - Origin
-            - Authorization
-            QueryString: false
-          TargetOriginId: "URLShortenerAPIGW"
-          ViewerProtocolPolicy: redirect-to-https
-        CustomErrorResponses:
-        - ErrorCachingMinTTL: 0
-          ErrorCode: 400
-        - ErrorCachingMinTTL: 1
-          ErrorCode: 403
-        - ErrorCachingMinTTL: 5
-          ErrorCode: 500
-        Logging:
-          Bucket: !GetAtt CloudFrontAccessLogsBucket.DomainName
-        Enabled: true
-        Origins:
-          - CustomOriginConfig:
-              OriginProtocolPolicy: https-only
-            DomainName: !Sub ${SiteAPI}.execute-api.${AWS::Region}.amazonaws.com
-            Id: "URLShortenerAPIGW"
-            OriginPath: /Prod
-
-  ##   CloudFront access logs storage
-  CloudFrontAccessLogsBucket:
-    Type: AWS::S3::Bucket
-
   ##   Amplify Application for hosting
   AmplifyApp:
     Type: AWS::Amplify::App
@@ -422,43 +381,6 @@ Resources:
       AlarmActions:
         - !Ref NotifyTopic
 
-  CloudFrontTotalErrorRateAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmName: "Url Shortener CloudFront Errors"
-      AlarmDescription: "CDN error monitor"
-      MetricName: TotalErrorRate
-      Namespace: AWS/CloudFront
-      Dimensions:
-        - Name: DistributionId
-          Value: !Ref CloudFrontDistro
-      Statistic: Sum
-      Period: 60
-      EvaluationPeriods: 1
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      Threshold: 5
-      AlarmActions:
-        - !Ref NotifyTopic
-
-  CloudFrontTotalCacheHitRateAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmName: "Url Shortener CloudFront Cache Hit Rate"
-      AlarmDescription: "CDN eache monitor"
-      MetricName: CacheHitRate
-      Namespace: AWS/CloudFront
-      Dimensions:
-        - Name: DistributionId
-          Value: !Ref CloudFrontDistro
-      Statistic: Average
-      Period: 300
-      EvaluationPeriods: 1
-      ComparisonOperator: LessThanOrEqualToThreshold
-      Threshold: .80
-      AlarmActions:
-        - !Ref NotifyTopic
-
-
 ###################################################################################################
 ##   Template outputs                                                                            ##
 ###################################################################################################
@@ -470,7 +392,7 @@ Outputs:
 
   VueAppAPIRoot:
     Description: API Gateway endpoint URL for linker
-    Value: !Sub "https://${CloudFrontDistro.DomainName}"
+    Value: !Sub "https://${SiteAPI}.execute-api.${AWS::Region}.amazonaws.com/Prod"
  
   VueAppAuthDomain: 
     Description: Domain used for authentication
@@ -493,7 +415,7 @@ Outputs:
     Value: !Sub
       - aws amplify update-app --app-id ${AmplifyID} --environment-variables VUE_APP_NAME=${AppName},VUE_APP_CLIENT_ID=${UserPoolClient},VUE_APP_API_ROOT=${APIRoot},VUE_APP_AUTH_DOMAIN=${APIAuthDomain}
       - AmplifyID: !GetAtt AmplifyApp.AppId
-        APIRoot: !Join ["", [ "https://", !GetAtt CloudFrontDistro.DomainName]]
+        APIRoot: !Sub "https://${SiteAPI}.execute-api.${AWS::Region}.amazonaws.com/Prod"
         APIAuthDomain: !Sub https://${AppName}-${AWS::AccountId}.auth.${AWS::Region}.amazoncognito.com
 
   AmplifyDeployCommand:

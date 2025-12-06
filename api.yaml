@@ -51,6 +51,8 @@ paths:
               type: "string"
             Cache-Control:
               type: "string"
+            shortener-api-rev:
+              type: "string"
       
       ## API Gateway Integration
       x-amazon-apigateway-integration:
@@ -67,6 +69,7 @@ paths:
             responseParameters:
               method.response.header.Location: {"Fn::Sub": ["'master.${ampDomain}?error=url_not_found'", { "ampDomain": {"Fn::GetAtt":["AmplifyApp", "DefaultDomain"]} }]}
               method.response.header.Cache-Control: "'max-age=300'"
+              method.response.header.shortener-api-rev: {"Fn::Sub": "'${ApiVersion}'"}
             responseTemplates:
               application/json: "#set($inputRoot = $input.path('$')) \
                 #if($inputRoot.toString().contains(\"Item\")) \
@@ -88,6 +91,8 @@ paths:
               type: "string"
             Cache-Control:
               type: "string"
+            shortener-api-rev:
+              type: "string"
             
 
       ## API Gateway Integration
@@ -108,6 +113,7 @@ paths:
             responseParameters:
               method.response.header.Cache-Control: "'no-cache, no-store'"
               method.response.header.Access-Control-Allow-Origin: {"Fn::If": ["IsLocal", "'*'", {"Fn::Sub": ["'https://master.${ampDomain}'", { "ampDomain": {"Fn::GetAtt":["AmplifyApp", "DefaultDomain"]} }]}]}
+              method.response.header.shortener-api-rev: {"Fn::Sub": "'${ApiVersion}'"}
             responseTemplates:
               application/json: "#set($inputRoot = $input.path('$'))[ \
                 #foreach($elem in $inputRoot.Items) { \
@@ -138,10 +144,14 @@ paths:
           headers:
             Access-Control-Allow-Origin:
               type: "string"
+            shortener-api-rev:
+              type: "string"
         "400":
           description: "400 response"
           headers:
             Access-Control-Allow-Origin:
+              type: "string"
+            shortener-api-rev:
               type: "string"
 
       ## API Gateway integration
@@ -164,6 +174,7 @@ paths:
             statusCode: "200"
             responseParameters:
               method.response.header.Access-Control-Allow-Origin: {"Fn::If": ["IsLocal", "'*'", {"Fn::Sub": ["'https://master.${ampDomain}'", { "ampDomain": {"Fn::GetAtt":["AmplifyApp", "DefaultDomain"]} }]}]}
+              method.response.header.shortener-api-rev: {"Fn::Sub": "'${ApiVersion}'"}
             responseTemplates:
               application/json: "#set($inputRoot = $input.path('$')) \
                 {\"id\":\"$inputRoot.Attributes.id.S\", \
@@ -174,6 +185,7 @@ paths:
             statusCode: "400"
             responseParameters:
               method.response.header.Access-Control-Allow-Origin: {"Fn::If": ["IsLocal", "'*'", {"Fn::Sub": ["'https://master.${ampDomain}'", { "ampDomain": {"Fn::GetAtt":["AmplifyApp", "DefaultDomain"]} }]}]}
+              method.response.header.shortener-api-rev: {"Fn::Sub": "'${ApiVersion}'"}
             responseTemplates:
               application/json: "#set($inputRoot = $input.path('$')) \
                 #if($inputRoot.toString().contains(\"ConditionalCheckFailedException\")) \
@@ -224,8 +236,13 @@ paths:
           headers:
             Access-Control-Allow-Origin:
               type: "string"
+            shortener-api-rev:
+              type: "string"
         "400":
           description: "400 response"
+          headers:
+            shortener-api-rev:
+              type: "string"
       
       ## AOI gateway integration
       x-amazon-apigateway-integration:
@@ -245,8 +262,11 @@ paths:
             statusCode: "200"
             responseParameters:
               method.response.header.Access-Control-Allow-Origin: {"Fn::If": ["IsLocal", "'*'", {"Fn::Sub": ["'https://master.${ampDomain}'", { "ampDomain": {"Fn::GetAtt":["AmplifyApp", "DefaultDomain"]} }]}]}
+              method.response.header.shortener-api-rev: {"Fn::Sub": "'${ApiVersion}'"}
           "400":
             statusCode: "400"
+            responseParameters:
+              method.response.header.shortener-api-rev: {"Fn::Sub": "'${ApiVersion}'"}
             responseTemplates:
               application/json: "{\"error\": {\"message\":\"Either you do not have permission to do this operation or a parameter is missing\"}}"
         type: "aws"
@@ -270,10 +290,14 @@ paths:
           headers:
             Access-Control-Allow-Origin:
               type: "string"
+            shortener-api-rev:
+              type: "string"
         "400":
           description: "400 response"
           headers:
             Access-Control-Allow-Origin:
+              type: "string"
+            shortener-api-rev:
               type: "string"
       
       ## API gateway integration
@@ -296,6 +320,7 @@ paths:
             statusCode: "200"
             responseParameters:
               method.response.header.Access-Control-Allow-Origin: {"Fn::If": ["IsLocal", "'*'", {"Fn::Sub": ["'https://master.${ampDomain}'", { "ampDomain": {"Fn::GetAtt":["AmplifyApp", "DefaultDomain"]} }]}]}
+              method.response.header.shortener-api-rev: {"Fn::Sub": "'${ApiVersion}'"}
             responseTemplates:
               application/json: "#set($inputRoot = $input.path('$')) \
                 {\"id\":\"$inputRoot.Attributes.id.S\", \
@@ -306,6 +331,7 @@ paths:
             statusCode: "400"
             responseParameters:
               method.response.header.Access-Control-Allow-Origin: {"Fn::If": ["IsLocal", "'*'", {"Fn::Sub": ["'https://master.${ampDomain}'", { "ampDomain": {"Fn::GetAtt":["AmplifyApp", "DefaultDomain"]} }]}]}
+              method.response.header.shortener-api-rev: {"Fn::Sub": "'${ApiVersion}'"}
             application/json: "{\"error\": {\"message\":\"Either you do not have permission to do this operation or a parameter is missing\"}}"
         type: "aws"
     options:

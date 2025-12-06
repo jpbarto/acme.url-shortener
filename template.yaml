@@ -41,6 +41,10 @@ Parameters:
     Type: String
     Description: Custom domain added to client
     Default: none
+  ApiVersion:
+    Type: String
+    Description: API version number for shortener-api-rev header
+    Default: v1.0.0
 
 ###################################################################################################
 ##   Template Conditions                                                                         ##

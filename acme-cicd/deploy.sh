@@ -51,12 +51,30 @@ fi
 aws --version
 
 # Deploy the code using AWS SAM
+# Temporarily disable exit on error to handle "no changes" case
+set +e
 sam deploy \
     --no-confirm-changeset --capabilities CAPABILITY_IAM \
     --stack-name url-shortener-stack \
     --parameter-overrides "$(cat sam-parameters.txt) ParameterKey=PersonalAcessToken,ParameterValue=${GITHUB_PAT}" \
     --region us-east-1 \
-    --resolve-s3
+    --resolve-s3 2>&1 | tee deploy.log
+
+DEPLOY_EXIT_CODE=$?
+set -e
+
+# Check if deployment failed due to "no changes" - this is acceptable
+if [ $DEPLOY_EXIT_CODE -ne 0 ]; then
+    if grep -q "No changes to deploy" deploy.log; then
+        echo "No changes to deploy - stack is up to date"
+    else
+        echo "Deployment failed with exit code $DEPLOY_EXIT_CODE"
+        cat deploy.log
+        rm -f deploy.log
+        exit $DEPLOY_EXIT_CODE
+    fi
+fi
+rm -f deploy.log
 
 # Retrieve the API Gateway endpoint URL and output as JSON
 export AWS_REGION=us-east-1

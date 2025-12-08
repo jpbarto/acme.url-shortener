@@ -1,0 +1,187 @@
+#!/bin/sh
+
+# Integration tests for URL Shortener REST API
+
+set -e
+
+# Change to parent directory
+cd "$(dirname "$0")/.."
+
+# Check if curl is installed, install if missing
+if ! command -v curl >/dev/null 2>&1; then
+    echo "Installing curl..."
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -y
+    apt-get install -y curl
+else
+    echo "curl already installed"
+fi
+
+# Read API endpoint from deployment output
+if [ ! -f "deployment_output.json" ]; then
+    echo "ERROR: deployment_output.json not found. Run deploy.sh first."
+    exit 1
+fi
+
+API_ENDPOINT=$(cat deployment_output.json | grep -o '"endpoint": "[^"]*"' | cut -d'"' -f4)
+
+if [ -z "$API_ENDPOINT" ]; then
+    echo "ERROR: Could not extract API endpoint from deployment_output.json"
+    exit 1
+fi
+
+echo "Testing URL Shortener API at: $API_ENDPOINT"
+echo "=========================================="
+
+# Generate a unique random user ID for testing
+USER_ID="test-user-$(uuidgen | tr '[:upper:]' '[:lower:]' | cut -d'-' -f1)"
+
+# Generate a unique link ID for testing
+LINK_ID="test-$(date +%s)"
+TEST_URL="https://api.restful-api.dev/objects"
+
+echo ""
+echo "Test 1: Create a new short URL"
+echo "-------------------------------"
+echo "curl -X POST -H 'shortener-user-id: $USER_ID' -H 'Content-Type: application/json' -d '{\"id\":\"$LINK_ID\",\"url\":\"$TEST_URL\"}' $API_ENDPOINT/app"
+CREATE_RESPONSE=$(curl -s -i -w "\n%{http_code}" -X POST \
+  -H "shortener-user-id: $USER_ID" \
+  -H "Content-Type: application/json" \
+  -d "{\"id\":\"$LINK_ID\",\"url\":\"$TEST_URL\"}" \
+  "$API_ENDPOINT/app")
+
+HTTP_CODE=$(echo "$CREATE_RESPONSE" | tail -n1)
+RESPONSE_HEADERS=$(echo "$CREATE_RESPONSE" | sed '$d' | sed -n '1,/^$/p')
+RESPONSE_BODY=$(echo "$CREATE_RESPONSE" | sed '$d' | sed '1,/^$/d')
+
+if [ "$HTTP_CODE" = "200" ]; then
+    echo "✓ CREATE passed (HTTP $HTTP_CODE)"
+    echo "  Headers:"
+    echo "$RESPONSE_HEADERS" | grep -i "shortener-api-rev\|content-type" | sed 's/^/    /'
+    echo "  Response: $CREATE_RESPONSE"
+else
+    echo "✗ CREATE failed (HTTP $HTTP_CODE)"
+    echo "  Response: $RESPONSE_BODY"
+    exit 1
+fi
+
+echo ""
+echo "Test 2: Get all links for user"
+echo "-------------------------------"
+echo "curl -H 'shortener-user-id: $USER_ID' $API_ENDPOINT/app"
+GET_ALL_RESPONSE=$(curl -s -i -w "\n%{http_code}" \
+  -H "shortener-user-id: $USER_ID" \
+  "$API_ENDPOINT/app")
+
+HTTP_CODE=$(echo "$GET_ALL_RESPONSE" | tail -n1)
+RESPONSE_HEADERS=$(echo "$GET_ALL_RESPONSE" | sed '$d' | sed -n '1,/^$/p')
+RESPONSE_BODY=$(echo "$GET_ALL_RESPONSE" | sed '$d' | sed '1,/^$/d')
+
+if [ "$HTTP_CODE" = "200" ]; then
+    echo "✓ GET ALL passed (HTTP $HTTP_CODE)"
+    echo "  Headers:"
+    echo "$RESPONSE_HEADERS" | grep -i "shortener-api-rev\|content-type\|cache-control" | sed 's/^/    /'
+    echo "  Response: $GET_ALL_RESPONSE"
+else
+    echo "✗ GET ALL failed (HTTP $HTTP_CODE)"
+    echo "  Response: $RESPONSE_BODY"
+    exit 1
+fi
+
+echo ""
+echo "Test 3: Redirect to full URL"
+echo "-----------------------------"
+echo "curl -L $API_ENDPOINT/$LINK_ID"
+REDIRECT_RESPONSE=$(curl -s -i -w "\n%{http_code}" -L "$API_ENDPOINT/$LINK_ID")
+
+HTTP_CODE=$(echo "$REDIRECT_RESPONSE" | tail -n1)
+RESPONSE_HEADERS=$(echo "$REDIRECT_RESPONSE" | sed '$d' | sed -n '1,/^$/p')
+
+if [ "$HTTP_CODE" = "200" ]; then
+    echo "✓ REDIRECT passed (HTTP $HTTP_CODE)"
+    echo "  Headers:"
+    echo "$RESPONSE_HEADERS" | grep -i "location\|shortener-api-rev" | sed 's/^/    /'
+    echo "  Successfully redirected to target URL"
+else
+    echo "✗ REDIRECT failed (HTTP $HTTP_CODE)"
+    echo "$REDIRECT_RESPONSE"
+    exit 1
+fi
+
+echo ""
+echo "Test 4: Update existing link"
+echo "-----------------------------"
+UPDATED_URL="https://www.example.com/"
+echo "curl -X PUT -H 'shortener-user-id: $USER_ID' -H 'Content-Type: application/json' -d '{...}' $API_ENDPOINT/app/$LINK_ID"
+UPDATE_RESPONSE=$(curl -s -i -w "\n%{http_code}" -X PUT \
+  -H "shortener-user-id: $USER_ID" \
+  -H "Content-Type: application/json" \
+  -d "{\"id\":\"$LINK_ID\",\"url\":\"$UPDATED_URL\",\"timestamp\":\"$(date -u +"%a, %d %b %Y %H:%M:%S GMT")\",\"owner\":\"$USER_ID\"}" \
+  "$API_ENDPOINT/app/$LINK_ID")
+
+HTTP_CODE=$(echo "$UPDATE_RESPONSE" | tail -n1)
+RESPONSE_HEADERS=$(echo "$UPDATE_RESPONSE" | sed '$d' | sed -n '1,/^$/p')
+RESPONSE_BODY=$(echo "$UPDATE_RESPONSE" | sed '$d' | sed '1,/^$/d')
+
+if [ "$HTTP_CODE" = "200" ]; then
+    echo "✓ UPDATE passed (HTTP $HTTP_CODE)"
+    echo "  Headers:"
+    echo "$RESPONSE_HEADERS" | grep -i "shortener-api-rev\|content-type" | sed 's/^/    /'
+    echo "  Response: $UPDATE_RESPONSE"
+else
+    echo "✗ UPDATE failed (HTTP $HTTP_CODE)"
+    echo "  Response: $UPDATE_RESPONSE"
+    exit 1
+fi
+
+echo ""
+echo "Test 5: Delete link"
+echo "-------------------"
+echo "curl -X DELETE -H 'shortener-user-id: $USER_ID' $API_ENDPOINT/app/$LINK_ID"
+DELETE_RESPONSE=$(curl -s -i -w "\n%{http_code}" -X DELETE \
+  -H "shortener-user-id: $USER_ID" \
+  "$API_ENDPOINT/app/$LINK_ID")
+
+HTTP_CODE=$(echo "$DELETE_RESPONSE" | tail -n1)
+RESPONSE_HEADERS=$(echo "$DELETE_RESPONSE" | sed '$d' | sed -n '1,/^$/p')
+RESPONSE_BODY=$(echo "$DELETE_RESPONSE" | sed '$d' | sed '1,/^$/d')
+
+if [ "$HTTP_CODE" = "200" ]; then
+    echo "✓ DELETE passed (HTTP $HTTP_CODE)"
+    echo "  Headers:"
+    echo "$RESPONSE_HEADERS" | grep -i "shortener-api-rev\|content-type" | sed 's/^/    /'
+    echo "  Response: $DELETE_RESPONSE"
+else
+    echo "✗ DELETE failed (HTTP $HTTP_CODE)"
+    echo "  Response: $DELETE_RESPONSE"
+    exit 1
+fi
+
+echo ""
+echo "Test 6: Verify link is deleted"
+echo "-------------------------------"
+echo "curl $API_ENDPOINT/$LINK_ID"
+VERIFY_DELETE=$(curl -s -i -w "\n%{http_code}" "$API_ENDPOINT/$LINK_ID")
+
+HTTP_CODE=$(echo "$VERIFY_DELETE" | tail -n1)
+RESPONSE_HEADERS=$(echo "$VERIFY_DELETE" | sed '$d' | sed -n '1,/^$/p')
+
+if echo "$RESPONSE_HEADERS" | grep -i "location" | grep -q "error=url_not_found"; then
+    echo "✓ VERIFY DELETE passed - link returns error (HTTP $HTTP_CODE)"
+    echo "  Headers:"
+    echo "$RESPONSE_HEADERS" | grep -i "location\|shortener-api-rev" | sed 's/^/    /'
+    echo "  Response:"
+    echo "$VERIFY_DELETE"
+else
+    echo "✗ VERIFY DELETE failed - link still exists or unexpected response"
+    echo "  Headers:"
+    echo "$RESPONSE_HEADERS" | grep -i "location\|shortener-api-rev" | sed 's/^/    /'
+    echo "  Response:"
+    echo "$VERIFY_DELETE"
+    exit 1
+fi
+
+echo ""
+echo "=========================================="
+echo "All integration tests passed! ✓"
+echo "=========================================="

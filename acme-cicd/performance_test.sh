@@ -14,31 +14,60 @@ cd "$(dirname "$0")/.."
 if ! command -v k6 >/dev/null 2>&1; then
     echo "Installing K6..."
     
-    # Determine OS and install K6
-    if [ "$(uname)" = "Darwin" ]; then
-        # macOS installation
-        if command -v brew >/dev/null 2>&1; then
-            brew install k6
-        else
-            echo "ERROR: Homebrew not found. Please install K6 manually from https://k6.io/docs/getting-started/installation/"
+    # Determine OS and architecture
+    OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+    ARCH=$(uname -m)
+    
+    # Map architecture names to k6 naming convention
+    case "$ARCH" in
+        x86_64)
+            ARCH="amd64"
+            ;;
+        aarch64)
+            ARCH="arm64"
+            ;;
+        arm64)
+            ARCH="arm64"
+            ;;
+        *)
+            echo "ERROR: Unsupported architecture: $ARCH"
             exit 1
-        fi
-    elif [ "$(uname)" = "Linux" ]; then
-        # Linux installation
-        export DEBIAN_FRONTEND=noninteractive
-        apt-get update -y
-        
-        # Add K6 repository
-        apt-get install -y gnupg ca-certificates
-        mkdir -p /root/.gnupg
-        gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
-        echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | tee /etc/apt/sources.list.d/k6.list
-        apt-get update -y
-        apt-get install -y k6
+            ;;
+    esac
+    
+    K6_VERSION="v1.4.2"
+    K6_TARBALL="k6-${K6_VERSION}-${OS}-${ARCH}.tar.gz"
+    K6_URL="https://github.com/grafana/k6/releases/download/${K6_VERSION}/${K6_TARBALL}"
+    
+    echo "Downloading K6 for ${OS}-${ARCH}..."
+    echo "URL: ${K6_URL}"
+    
+    # Download k6
+    if command -v wget >/dev/null 2>&1; then
+        wget -q "${K6_URL}" -O "${K6_TARBALL}"
+    elif command -v curl >/dev/null 2>&1; then
+        curl -sL "${K6_URL}" -o "${K6_TARBALL}"
     else
-        echo "ERROR: Unsupported OS. Please install K6 manually from https://k6.io/docs/getting-started/installation/"
+        echo "ERROR: Neither wget nor curl found. Cannot download k6."
         exit 1
     fi
+    
+    # Extract k6
+    echo "Extracting K6..."
+    tar -xzf "${K6_TARBALL}"
+    
+    # Move k6 binary to a location in PATH
+    K6_DIR="k6-${K6_VERSION}-${OS}-${ARCH}"
+    if [ -d "$K6_DIR" ]; then
+        mv "${K6_DIR}/k6" /usr/local/bin/k6 2>/dev/null || sudo mv "${K6_DIR}/k6" /usr/local/bin/k6 || cp "${K6_DIR}/k6" ./k6
+        chmod +x /usr/local/bin/k6 2>/dev/null || chmod +x ./k6
+        rm -rf "${K6_DIR}" "${K6_TARBALL}"
+    else
+        echo "ERROR: K6 extraction failed"
+        exit 1
+    fi
+    
+    echo "K6 installed successfully"
 else
     echo "K6 already installed"
 fi
@@ -89,7 +118,7 @@ WORKSPACE_ROOT="$(pwd)"
 k6 run \
     --out json=performance_results.json \
     -e API_ENDPOINT="$API_ENDPOINT" \
-    /src/acme-cicd/performance_test.js
+    acme-cicd/performance_test.js
 
 K6_EXIT_CODE=$?
 
